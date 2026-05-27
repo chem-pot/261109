@@ -1,0 +1,604 @@
+ 
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>규산염 광물 구조 시뮬레이션</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            padding: 22px 20px 16px;
+            background: rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.9em;
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, #64ffda, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p { color: rgba(255,255,255,0.55); font-size: 0.88em; }
+
+        .page-layout {
+            display: flex;
+            gap: 20px;
+            padding: 20px 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            align-items: flex-start;
+        }
+
+        /* ── 왼쪽: 3×2 그리드 ── */
+        .mineral-grid-panel {
+            flex-shrink: 0;
+            width: 300px;
+        }
+
+        .grid-title {
+            font-size: 0.78em;
+            color: rgba(255,255,255,0.45);
+            margin-bottom: 10px;
+            text-align: center;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .mineral-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .mineral-card {
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05);
+            transition: all 0.25s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mineral-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(100,255,218,0.55);
+            box-shadow: 0 6px 22px rgba(100,255,218,0.2);
+        }
+
+        .mineral-card.active {
+            border-color: #64ffda;
+            box-shadow: 0 0 22px rgba(100,255,218,0.45),
+                        inset 0 0 14px rgba(100,255,218,0.07);
+            transform: translateY(-3px);
+        }
+
+        .mineral-card.active::after {
+            content: '✓';
+            position: absolute;
+            top: 5px; right: 5px;
+            width: 18px; height: 18px;
+            background: #64ffda;
+            border-radius: 50%;
+            color: #0a0a1a;
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 18px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .mineral-photo-wrap {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: rgba(20,20,40,0.8);
+            overflow: hidden;
+        }
+
+        .mineral-photo-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .mineral-card:hover .mineral-photo-wrap img {
+            transform: scale(1.06);
+        }
+
+        .mineral-photo-wrap .fallback-icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.4em;
+            color: rgba(255,255,255,0.3);
+            z-index: 0;
+        }
+
+        .mineral-card-body {
+            padding: 7px 7px 8px;
+            background: rgba(0,0,0,0.35);
+        }
+
+        .mineral-card-name {
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 3px;
+        }
+
+        .mineral-card-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 0.6em;
+            font-weight: 600;
+        }
+
+        /* ── 오른쪽 ── */
+        .right-layout {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .canvas-container {
+            background: rgba(255,255,255,0.03);
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .canvas-title {
+            font-size: 1.15em;
+            font-weight: 700;
+            color: #ffd700;
+            margin-bottom: 2px;
+        }
+
+        .canvas-subtitle {
+            font-size: 0.78em;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 14px;
+        }
+
+        .struct-img-wrap {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.92);
+            position: relative;
+            min-height: 240px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .struct-img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            max-height: 320px;
+        }
+
+        .struct-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 50px 20px;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.88em;
+            min-height: 240px;
+        }
+
+        .struct-placeholder .ph-icon { font-size: 3em; opacity: 0.5; }
+
+        /* ── 정보 카드 3개 ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .info-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 14px 10px;
+            border: 1px solid rgba(255,255,255,0.07);
+            text-align: center;
+            transition: border-color 0.25s;
+        }
+
+        .info-card:hover { border-color: rgba(100,255,218,0.25); }
+
+        .crystal-icon-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 48px;
+            margin-bottom: 6px;
+        }
+
+        .crystal-canvas { display: block; }
+
+        .info-card .i-icon  { font-size: 1.4em; margin-bottom: 6px; }
+        .info-card .label   { font-size: 0.68em; color: rgba(255,255,255,0.5); margin-bottom: 5px; }
+        .info-card .value   { font-size: 0.92em; font-weight: 700; color: #64ffda; line-height: 1.4; }
+
+        @media (max-width: 860px) {
+            .page-layout { flex-direction: column; }
+            .mineral-grid-panel { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>⚗️ 규산염 광물 구조 시뮬레이션</h1>
+    <p>광물 카드를 클릭해서 SiO₄ 결합 구조를 알아보자!</p>
+</div>
+
+<div class="page-layout">
+
+    <div class="mineral-grid-panel">
+        <div class="grid-title">🪨 광물 선택</div>
+        <div class="mineral-grid" id="mineralGrid"></div>
+    </div>
+
+    <div class="right-layout">
+
+        <div class="canvas-container">
+            <div class="canvas-title"    id="structureTitle">광물을 선택해주세요</div>
+            <div class="canvas-subtitle" id="structureSubtitle">← 왼쪽 카드를 클릭하면 구조가 나타나요</div>
+            <div id="structImgArea">
+                <div class="struct-placeholder">
+                    <div class="ph-icon">🔬</div>
+                    <span>광물을 선택하면 결합 구조 사진이 표시돼요</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="i-icon">🔗</div>
+                <div class="label">공유 산소 수</div>
+                <div class="value" id="sharedO">-</div>
+            </div>
+            <div class="info-card">
+                <div class="crystal-icon-wrap">
+                    <canvas class="crystal-canvas" id="crystalCanvas" width="60" height="48"></canvas>
+                </div>
+                <div class="label">결정형</div>
+                <div class="value" id="crystal">-</div>
+            </div>
+            <div class="info-card">
+                <div class="i-icon">🪨</div>
+                <div class="label">쪼개짐</div>
+                <div class="value" id="cleavage">-</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  광물 데이터
+// ════════════════════════════════════════════
+const MINERALS = [
+    {
+        name        : "감람석",
+        icon        : "🟢",
+        mineralImg  : "mineral_olivine.jpg",
+        structImg   : "struct_neso.jpg",
+        structName  : "독립형 (Nesosilicate)",
+        subtitle    : "SiO₄ 사면체가 서로 독립적으로 존재",
+        badgeColor  : "#22c55e",
+        sharedO     : "0개",
+        crystal     : "짧은 기둥 모양",
+        crystalShape: "short_column",
+        cleavage    : "없음"          // ← 수정
+    },
+    {
+        name        : "휘석",
+        icon        : "🔵",
+        mineralImg  : "mineral_pyroxene.jpg",
+        structImg   : "struct_chain.jpg",
+        structName  : "단사슬형 (Inosilicate)",
+        subtitle    : "산소 2개를 공유해 긴 사슬을 형성",
+        badgeColor  : "#3b82f6",
+        sharedO     : "2개",
+        crystal     : "짧은 기둥 모양",
+        crystalShape: "short_column",
+        cleavage    : "2방향"         // ← 수정
+    },
+    {
+        name        : "각섬석",
+        icon        : "🟣",
+        mineralImg  : "mineral_amphibole.jpg",
+        structImg   : "struct_doublechain.jpg",
+        structName  : "복사슬형 (Double Chain)",
+        subtitle    : "두 사슬이 병렬 연결 — 산소 2~3개 공유",
+        badgeColor  : "#8b5cf6",
+        sharedO     : "2~3개",
+        crystal     : "긴 기둥 모양",
+        crystalShape: "long_column",
+        cleavage    : "2방향"         // ← 수정
+    },
+    {
+        name        : "흑운모",
+        icon        : "🟤",
+        mineralImg  : "mineral_biotite.jpg",
+        structImg   : "struct_sheet.jpg",
+        structName  : "판상형 (Phyllosilicate)",
+        subtitle    : "산소 3개 공유 → 2차원 층상 구조",
+        badgeColor  : "#f59e0b",
+        sharedO     : "3개",
+        crystal     : "판 모양",
+        crystalShape: "plate",
+        cleavage    : "1방향"         // ← 수정
+    },
+    {
+        name        : "석영",
+        icon        : "🔷",
+        mineralImg  : "mineral_quartz.jpg",
+        structImg   : "struct_framework.jpg",
+        structName  : "망상형 (Tectosilicate)",
+        subtitle    : "산소 4개 모두 공유 → 3차원 망상 구조",
+        badgeColor  : "#ef4444",
+        sharedO     : "4개",
+        crystal     : "육각 기둥 모양",
+        crystalShape: "hex_column",
+        cleavage    : "2방향"         // ← 수정
+    },
+    {
+        name        : "장석",
+        icon        : "⬜",
+        mineralImg  : "mineral_feldspar.jpg",
+        structImg   : "struct_framework.jpg",
+        structName  : "망상형 (Tectosilicate)",
+        subtitle    : "산소 4개 모두 공유 → 3차원 망상 구조",
+        badgeColor  : "#ef4444",
+        sharedO     : "4개",
+        crystal     : "두꺼운 판 모양",
+        crystalShape: "thick_plate",
+        cleavage    : "없음"          // ← 수정
+    }
+];
+
+// ════════════════════════════════════════════
+//  결정형 아이콘 그리기 (Canvas)
+// ════════════════════════════════════════════
+function drawCrystalShape(canvasId, shape) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const fillColor   = 'rgba(100,220,255,0.25)';
+    const strokeColor = '#64ffda';
+    const topColor    = 'rgba(100,220,255,0.45)';
+    const sideColor   = 'rgba(100,220,255,0.15)';
+    ctx.lineJoin = 'round';
+    ctx.lineCap  = 'round';
+
+    switch (shape) {
+
+        case 'short_column': {
+            const cx=W/2, cy=H/2;
+            const rx=20, ry=8, h=18;
+            const bodyPts = [
+                [cx-rx, cy-h/2+ry],
+                [cx,    cy-h/2+ry*2],
+                [cx+rx, cy-h/2+ry],
+                [cx+rx, cy+h/2+ry],
+                [cx,    cy+h/2+ry*2],
+                [cx-rx, cy+h/2+ry]
+            ];
+            ctx.beginPath();
+            ctx.moveTo(...bodyPts[0]);
+            bodyPts.forEach(p => ctx.lineTo(...p));
+            ctx.closePath();
+            ctx.fillStyle = fillColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.4; ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, cy-h/2+ry, rx, ry, 0, 0, Math.PI*2);
+            ctx.fillStyle = topColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.4; ctx.stroke();
+            break;
+        }
+
+        case 'long_column': {
+            const cx=W/2, cy=H/2+2;
+            const rx=13, ry=5, h=30;
+            const bodyPts = [
+                [cx-rx, cy-h/2+ry],
+                [cx,    cy-h/2+ry*2],
+                [cx+rx, cy-h/2+ry],
+                [cx+rx, cy+h/2+ry],
+                [cx,    cy+h/2+ry*2],
+                [cx-rx, cy+h/2+ry]
+            ];
+            ctx.beginPath();
+            ctx.moveTo(...bodyPts[0]);
+            bodyPts.forEach(p => ctx.lineTo(...p));
+            ctx.closePath();
+            ctx.fillStyle = fillColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.4; ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, cy-h/2+ry, rx, ry, 0, 0, Math.PI*2);
+            ctx.fillStyle = topColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.4; ctx.stroke();
+            break;
+        }
+
+        case 'plate': {
+            const cx=W/2, cy=H/2+4;
+            const rx=22, ry=7, h=7;
+            ctx.beginPath();
+            ctx.moveTo(cx-rx, cy-ry);
+            ctx.lineTo(cx-rx, cy-ry+h);
+            ctx.lineTo(cx,    cy+ry+h*0.6);
+            ctx.lineTo(cx+rx, cy-ry+h);
+            ctx.lineTo(cx+rx, cy-ry);
+            ctx.closePath();
+            ctx.fillStyle = sideColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.2; ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, cy-ry, rx, ry, 0, 0, Math.PI*2);
+            ctx.fillStyle = topColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.4; ctx.stroke();
+            break;
+        }
+
+        case 'hex_column': {
+            const cx=W/2, cy=H/2+2;
+            const r=18, h=24;
+            function hexPts(centerY, radius) {
+                const pts = [];
+                for (let i = 0; i < 6; i++) {
+                    const a = Math.PI/6 + i * Math.PI/3;
+                    pts.push([cx + radius*Math.cos(a), centerY + radius*0.38*Math.sin(a)]);
+                }
+                return pts;
+            }
+            const top = hexPts(cy - h/2, r);
+            const bot = hexPts(cy + h/2, r);
+            for (let i = 0; i < 6; i++) {
+                const j = (i+1) % 6;
+                ctx.beginPath();
+                ctx.moveTo(...top[i]); ctx.lineTo(...top[j]);
+                ctx.lineTo(...bot[j]); ctx.lineTo(...bot[i]);
+                ctx.closePath();
+                ctx.fillStyle = i < 3 ? fillColor : sideColor;
+                ctx.fill();
+                ctx.strokeStyle = strokeColor; ctx.lineWidth = 1; ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.moveTo(...top[0]);
+            top.forEach(p => ctx.lineTo(...p));
+            ctx.closePath();
+            ctx.fillStyle = topColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.4; ctx.stroke();
+            break;
+        }
+
+        case 'thick_plate': {
+            const cx=W/2, cy=H/2+2;
+            const rx=22, ry=7, h=16;
+            ctx.beginPath();
+            ctx.moveTo(cx-rx, cy-ry);
+            ctx.lineTo(cx-rx, cy-ry+h);
+            ctx.lineTo(cx,    cy+ry+h*0.6);
+            ctx.lineTo(cx+rx, cy-ry+h);
+            ctx.lineTo(cx+rx, cy-ry);
+            ctx.closePath();
+            ctx.fillStyle = sideColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.2; ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, cy-ry, rx, ry, 0, 0, Math.PI*2);
+            ctx.fillStyle = topColor; ctx.fill();
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = 1.4; ctx.stroke();
+            break;
+        }
+    }
+}
+
+// ════════════════════════════════════════════
+//  광물 선택
+// ════════════════════════════════════════════
+function selectMineral(idx) {
+    document.querySelectorAll('.mineral-card')
+            .forEach((c, i) => c.classList.toggle('active', i === idx));
+
+    const m = MINERALS[idx];
+
+    document.getElementById('structureTitle').textContent    = m.structName;
+    document.getElementById('structureSubtitle').textContent = m.subtitle;
+    document.getElementById('sharedO').textContent           = m.sharedO;
+    document.getElementById('crystal').textContent           = m.crystal;
+    document.getElementById('cleavage').textContent          = m.cleavage;
+
+    drawCrystalShape('crystalCanvas', m.crystalShape);
+
+    document.getElementById('structImgArea').innerHTML = `
+        <div class="struct-img-wrap">
+            <img
+                src="${m.structImg}"
+                alt="${m.structName} 구조"
+                onerror="this.style.display='none';
+                         document.getElementById('structFallback').style.display='flex';"
+            />
+            <div id="structFallback"
+                 style="display:none; position:absolute; inset:0;
+                        align-items:center; justify-content:center;
+                        flex-direction:column; gap:8px;
+                        color:rgba(80,80,100,0.75); font-size:0.85em;
+                        background:rgba(240,240,255,0.95);">
+                <span style="font-size:2.5em">🖼️</span>
+                <span>${m.structImg} 파일을 같은 폴더에 넣어줘!</span>
+            </div>
+        </div>
+    `;
+}
+
+// ════════════════════════════════════════════
+//  3×2 카드 그리드 생성
+// ════════════════════════════════════════════
+function buildGrid() {
+    const grid = document.getElementById('mineralGrid');
+    MINERALS.forEach((m, i) => {
+        const card = document.createElement('div');
+        card.className = 'mineral-card';
+        card.onclick   = () => selectMineral(i);
+        card.innerHTML = `
+            <div class="mineral-photo-wrap">
+                <div class="fallback-icon">${m.icon}</div>
+                <img src="${m.mineralImg}" alt="${m.name}"
+                     onerror="this.style.display='none'" />
+            </div>
+            <div class="mineral-card-body">
+                <div class="mineral-card-name">${m.name}</div>
+                <span class="mineral-card-badge"
+                      style="background:${m.badgeColor}22;
+                             color:${m.badgeColor};
+                             border:1px solid ${m.badgeColor}55">
+                    공유O ${m.sharedO}
+                </span>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+window.onload = () => buildGrid();
+</script>
+</body>
+</html>
